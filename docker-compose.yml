@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: events_app_web
+    env_file:
+      - .env
+    command:
+      ['gunicorn', '--bind', '0.0.0.0:8000', 'events_app.wsgi:application']
+    volumes:
+      - .:/app
+    ports:
+      - '8000:8000'
+    depends_on:
+      - db
+      - redis
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: events_app_celery
+    env_file:
+      - .env
+    command:
+      [
+        'sh',
+        '-c',
+        'sleep 10 && celery -A events_app.celery worker --loglevel=info',
+      ]
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - db
+
+  redis:
+    image: 'redis:alpine'
+    container_name: events_app_redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+  db:
+    image: 'postgres:17'
+    container_name: events_app_db
+    env_file:
+      - .env # Файл .env для базы данных
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+volumes:
+  redis_data:
+  db_data:
