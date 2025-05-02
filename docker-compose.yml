@@ -1,44 +1,51 @@
-version: '3.8'
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+x-app-env: &app-env
+  env_file:
+    - .env
+  environment:
+    - DJANGO_SETTINGS_MODULE=events_app.settings
+    - PYTHONUNBUFFERED=1
+    - PYTHONPATH=/app
 
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: [*app-build, *app-env]
     container_name: events_app_web
-    env_file:
-      - .env
-    command:
-      ['gunicorn', '--bind', '0.0.0.0:8000', 'events_app.wsgi:application']
-    volumes:
-      - .:/app
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py createsuperuser --noinput --username admin --email admin@example.com &&
+             python manage.py runserver 0.0.0.0:8000"
     ports:
       - '8000:8000'
     depends_on:
-      - db
-      - redis
-
-  celery:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: events_app_celery
-    env_file:
-      - .env
-    command:
-      [
-        'sh',
-        '-c',
-        'sleep 10 && celery -A events_app.celery worker --loglevel=info',
-      ]
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - .:/app
+    environment:
+      - DJANGO_SUPERUSER_PASSWORD=admin123
+
+  celery:
+    <<: [*app-build, *app-env]
+    container_name: events_app_celery
+    command: sh -c "sleep 10 && python -m celery -A events_app worker --loglevel=info"
     depends_on:
-      - redis
-      - db
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    user: '1000:1000'
 
   redis:
-    image: 'redis:alpine'
+    image: redis:alpine
     container_name: events_app_redis
     ports:
       - '6379:6379'
@@ -46,14 +53,22 @@ services:
       - redis_data:/data
 
   db:
-    image: 'postgres:17'
+    <<: *app-env
+    image: postgres:13-alpine
     container_name: events_app_db
-    env_file:
-      - .env # Файл .env для базы данных
-    volumes:
-      - db_data:/var/lib/postgresql/data
     ports:
       - '5432:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=events_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   redis_data:
