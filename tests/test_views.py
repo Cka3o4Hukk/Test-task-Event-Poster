@@ -1,20 +1,29 @@
+from datetime import timedelta
+
 import pytest
-from rest_framework import status
-from rest_framework.test import APIClient
-from events.models import Event, Booking, Rating
 from django.contrib.auth.models import User
 from django.utils import timezone
-from datetime import timedelta
+from rest_framework import status
+from rest_framework.test import APIClient
+
+from events.models import Booking, Event, Rating
 
 
 @pytest.fixture
 def user():
-    return User.objects.create_user(username='testuser', password='testpassword')
+    return User.objects.create_user(
+        username='testuser',
+        password='testpassword',
+    )
 
 
 @pytest.fixture
 def admin_user():
-    return User.objects.create_superuser(username='admin', password='adminpassword', email='admin@example.com')
+    return User.objects.create_superuser(
+        username='admin',
+        password='adminpassword',
+        email='admin@example.com',
+    )
 
 
 @pytest.fixture
@@ -26,7 +35,7 @@ def event(user):
         location='Test City',
         seats=100,
         status='planned',
-        organizer=user
+        organizer=user,
     )
 
 
@@ -39,7 +48,7 @@ def past_event(user):
         location='Test City',
         seats=50,
         status='completed',
-        organizer=user
+        organizer=user,
     )
 
 
@@ -55,7 +64,6 @@ def test_event_list(client, event, past_event):
     assert response.status_code == status.HTTP_200_OK
     data = response.data
     assert len(data) == 2
-    # Проверяем сортировку: предстоящие (event) перед прошедшими (past_event)
     assert data[0]['id'] == event.id
     assert data[1]['id'] == past_event.id
 
@@ -108,7 +116,8 @@ def test_rating_rejected_for_non_participant(client, user, past_event):
     data = {'event': past_event.id, 'score': 4}
     response = client.post(url, data, format='json')
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'Можно оценивать только свои посещенные события' in str(response.data)
+    assert 'Можно оценивать только свои посещенные события' in str(
+        response.data)
 
 
 @pytest.mark.django_db
@@ -119,6 +128,5 @@ def test_event_list_sorted_by_rating(client, user, past_event):
     response = client.get('/api/events/?ordering=-avg_rating')
     assert response.status_code == status.HTTP_200_OK
     data = response.data
-    # Проверяем, что past_event с рейтингом идёт первым
     assert len(data) >= 1
-    assert data[0]['id'] == past_event.id  # Прошедшее событие с рейтингом
+    assert data[0]['id'] == past_event.id

@@ -1,11 +1,18 @@
 from unittest.mock import patch
+
 import pytest
-from events.models import Notification, Event, Booking
 from django.contrib.auth.models import User
+
+from events.models import Booking, Event
+
 
 @pytest.fixture
 def user():
-    return User.objects.create_user(username='testuser', password='testpassword')
+    return User.objects.create_user(
+        username='testuser',
+        password='testpassword',
+    )
+
 
 @pytest.fixture
 def event(user):
@@ -16,15 +23,15 @@ def event(user):
         location='Test City',
         seats=100,
         status='planned',
-        organizer=user
+        organizer=user,
     )
 
-print("Patching notify_user.delay from:", 'events.tasks.notify_user.delay')
 
 @pytest.fixture
 def mock_notify_user():
     with patch('events.tasks.notify_user.delay') as mock:
         yield mock
+
 
 @pytest.mark.django_db
 def test_booking_notification(mock_notify_user, client, user, event):
@@ -33,10 +40,11 @@ def test_booking_notification(mock_notify_user, client, user, event):
     data = {'event': event.id}
     client.post(url, data)
     mock_notify_user.assert_called_once_with(
-        user.id, 
-        event.id, 
-        'Вы забронировали мероприятие: Test Event'
+        user.id,
+        event.id,
+        'Вы забронировали мероприятие: Test Event',
     )
+
 
 @pytest.mark.django_db
 def test_cancel_booking_notification(client, user, event, mock_notify_user):
@@ -47,10 +55,9 @@ def test_cancel_booking_notification(client, user, event, mock_notify_user):
     response = client.delete(url)
 
     mock_notify_user.assert_called_once_with(
-        user.id, 
-        event.id, 
-        'Вы отменили бронирование для мероприятия: Test Event'
+        user.id,
+        event.id,
+        'Вы отменили бронирование для мероприятия: Test Event',
     )
 
     assert response.status_code == 204
-

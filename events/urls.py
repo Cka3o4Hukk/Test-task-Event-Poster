@@ -1,8 +1,12 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import EventViewSet, BookingViewSet, NotificationViewSet, RatingViewSet
-
+from events.views import (
+    BookingViewSet,
+    EventViewSet,
+    NotificationViewSet,
+    RatingViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'events', EventViewSet, basename='event')

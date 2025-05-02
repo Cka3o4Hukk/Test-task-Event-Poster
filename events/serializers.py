@@ -1,37 +1,42 @@
 import logging
 
-from rest_framework import serializers
 from django.contrib.auth.models import User
+from rest_framework import serializers
 
-from .models import Event, Booking, Notification, Rating, Tag
-
+from events.models import Booking, Event, Notification, Rating, Tag
 
 logger = logging.getLogger(__name__)
+
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ['id', 'name']
+        fields = ('id', 'name')
 
 
 class EventSerializer(serializers.ModelSerializer):
     organizer = serializers.ReadOnlyField(source='organizer.username')
     organizer_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source='organizer', write_only=True, required=False
-    )
+        queryset=User.objects.all(),
+        source='organizer',
+        write_only=True,
+        required=False)
     tags = TagSerializer(many=True, read_only=True)
     tag_ids = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Tag.objects.all(), source='tags', write_only=True, required=False
-    )
+        many=True,
+        queryset=Tag.objects.all(),
+        source='tags',
+        write_only=True,
+        required=False)
 
     class Meta:
         model = Event
-        fields = [
-            'id', 'title', 'description', 'start_time', 'location',
-            'seats', 'status', 'organizer', 'organizer_id', 'created_at', 'tags', 'tag_ids'
-        ]
-        read_only_fields = ['id', 'created_at', 'organizer']
-    
+        fields = (
+            'id', 'title', 'description', 'start_time', 'location', 'seats',
+            'status', 'organizer', 'organizer_id', 'created_at', 'tags',
+            'tag_ids')
+        read_only_fields = ('id', 'created_at', 'organizer')
+
     def validate(self, data):
         logger.debug(f"Validated data: {data}")
         return super().validate(data)
@@ -53,30 +58,30 @@ class EventSerializer(serializers.ModelSerializer):
             instance.tags.set(tags)
         return instance
 
+
 class BookingSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     event = serializers.PrimaryKeyRelatedField(queryset=Event.objects.all())
 
     class Meta:
         model = Booking
-        fields = ['id', 'user', 'event', 'created_at']
-        read_only_fields = ['id', 'created_at', 'user']
+        fields = ('id', 'user', 'event', 'created_at')
+        read_only_fields = ('id', 'created_at', 'user')
 
 
 class NotificationSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     event = serializers.PrimaryKeyRelatedField(
-        queryset=Event.objects.all(), allow_null=True, required=False
-    )
+        queryset=Event.objects.all(), allow_null=True, required=False)
 
     class Meta:
         model = Notification
-        fields = ['id', 'user', 'event', 'message', 'created_at']
-        read_only_fields = ['id', 'created_at', 'user', 'event', 'message']
+        fields = ('id', 'user', 'event', 'message', 'created_at')
+        read_only_fields = ('id', 'created_at', 'user', 'event', 'message')
 
 
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rating
-        fields = ['id', 'event', 'user', 'score', 'created_at']
-        read_only_fields = ['user', 'created_at']
+        fields = ('id', 'event', 'user', 'score', 'created_at')
+        read_only_fields = ('user', 'created_at')

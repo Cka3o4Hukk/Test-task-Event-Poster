@@ -6,33 +6,33 @@ from django.utils import timezone
 
 
 class Event(models.Model):
-    STATUS_CHOICES = (
-        ('planned', 'Ожидается'),
-        ('canceled', 'Отменено'),
-        ('completed', 'Завершено'),
-    )
+    class StatusChoices(models.TextChoices):
+        PLANNED = 'planned', 'Ожидается'
+        CANCELED = 'canceled', 'Отменено'
+        COMPLETED = 'completed', 'Завершено'
     title = models.CharField(max_length=255)
     description = models.TextField()
     start_time = models.DateTimeField()
     location = models.CharField(max_length=100)
     seats = models.PositiveIntegerField()
     status = models.CharField(
-        max_length=20, 
-        choices=STATUS_CHOICES, 
-        default='planned'
-    )
+        max_length=20,
+        choices=StatusChoices.choices,
+        default=StatusChoices.PLANNED)
     organizer = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='organized_events'
-    )
+        User,
+        on_delete=models.CASCADE,
+        related_name='organized_events')
     created_at = models.DateTimeField(auto_now_add=True)
     tags = models.ManyToManyField('Tag', related_name='events', blank=True)
 
-    def can_book(self):
-        """Проверка, можно ли забронировать место на событие."""
+    @property
+    def is_booking(self) -> bool:
+        """Проверяет, можно ли забронировать место на событие. """
         time_left = self.start_time - timezone.now()
-        return time_left > timedelta(minutes=30)
+        is_time_valid = time_left > timedelta(minutes=30)
+        is_status_valid = self.status == self.StatusChoices.PLANNED
+        return is_time_valid and is_status_valid
 
     def __str__(self):
         return self.title
@@ -40,15 +40,13 @@ class Event(models.Model):
 
 class Booking(models.Model):
     user = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='bookings'
-    )
+        User,
+        on_delete=models.CASCADE,
+        related_name='bookings')
     event = models.ForeignKey(
-        Event, 
-        on_delete=models.CASCADE, 
-        related_name='bookings'
-    )
+        Event,
+        on_delete=models.CASCADE,
+        related_name='bookings')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -67,16 +65,14 @@ class Tag(models.Model):
 
 class Notification(models.Model):
     user = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='notifications'
-    )
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications')
     event = models.ForeignKey(
-        Event, 
-        on_delete=models.CASCADE, 
-        null=True, 
-        blank=True
-    )
+        Event,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -86,22 +82,19 @@ class Notification(models.Model):
 
 class Rating(models.Model):
     event = models.ForeignKey(
-        Event, 
-        on_delete=models.CASCADE, 
-        related_name='ratings'
-    )
+        Event,
+        on_delete=models.CASCADE,
+        related_name='ratings')
     user = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='ratings'
-    )
+        User,
+        on_delete=models.CASCADE,
+        related_name='ratings')
     score = models.PositiveSmallIntegerField(
-        choices=[(i, i) for i in range(1, 6)]
-    )
+        choices=[(i, i) for i in range(1, 6)])
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('event', 'user') 
+        unique_together = ('event', 'user')
 
     def __str__(self):
         return f"{self.user.username} - {self.event.title} ({self.score})"

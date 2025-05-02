@@ -1,14 +1,19 @@
 from datetime import timedelta
-import pytest
 
+import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from events.models import Event, Booking
+from events.models import Booking, Event
+
 
 @pytest.fixture
 def user():
-    return User.objects.create_user(username='testuser', password='testpassword')
+    return User.objects.create_user(
+        username='testuser',
+        password='testpassword',
+    )
+
 
 @pytest.fixture
 def event(user):
@@ -19,13 +24,15 @@ def event(user):
         location='Test City',
         seats=100,
         status='planned',
-        organizer=user
+        organizer=user,
     )
+
 
 @pytest.mark.django_db
 def test_event_creation(event):
     assert event.title == 'Test Event'
     assert event.status == 'planned'
+
 
 @pytest.mark.django_db
 def test_booking_creation(user, event):
