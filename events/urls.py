@@ -8,7 +8,7 @@ from events.views import (
     RatingViewSet,
 )
 
-router = DefaultRouter()
+router: DefaultRouter = DefaultRouter()
 router.register(r'events', EventViewSet, basename='event')
 router.register(r'bookings', BookingViewSet, basename='booking')
 router.register(r'notifications', NotificationViewSet, basename='notification')

@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Dict
 
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -37,17 +38,17 @@ class EventSerializer(serializers.ModelSerializer):
             'tag_ids')
         read_only_fields = ('id', 'created_at', 'organizer')
 
-    def validate(self, data):
+    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
         logger.debug(f"Validated data: {data}")
         return super().validate(data)
 
-    def create(self, validated_data):
+    def create(self, validated_data: Dict[str, Any]) -> Event:
         tags = validated_data.pop('tags', [])
         event = Event.objects.create(**validated_data)
         event.tags.set(tags)
         return event
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Event, validated_data: Dict[str, Any]) -> Event:
         tags = validated_data.pop('tags', None)
 
         for attr, value in validated_data.items():

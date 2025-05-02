@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY events_app/ /app/events_app/
 COPY events/     /app/events/
 COPY manage.py   /app/
+COPY entrypoint.sh /app/
 
 ENV PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=events_app.settings \
@@ -32,4 +33,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 8000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+RUN adduser --disabled-password --no-create-home django && \
+    mkdir -p /app/staticfiles && \
+    chown -R django:django /app && \
+    chmod +x /app/entrypoint.sh
+
+USER django
+
+CMD ["/app/entrypoint.sh"]

@@ -1,4 +1,8 @@
+from typing import Any
+
 from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
+from django.db.models.query import QuerySet
+from django.http import HttpRequest
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions, serializers, status, viewsets
@@ -24,10 +28,10 @@ class EventViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = EventFilter
 
-    def get_event_service(self):
+    def get_event_service(self) -> EventService:
         return EventService()
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Event]:
         """Возвращает отсортированный queryset событий с аннотацией."""
         now = timezone.now()
         queryset = Event.objects.annotate(
@@ -41,7 +45,8 @@ class EventViewSet(viewsets.ModelViewSet):
                     'sort_order', 'start_time')
         return queryset
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: HttpRequest,
+                *args: Any, **kwargs: Any) -> Response:
         """Удаляет событие с проверкой прав и времени."""
         event = self.get_object()
         event_service = self.get_event_service()
@@ -53,7 +58,7 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True,
             methods=['patch'],
             permission_classes=[permissions.IsAuthenticated])
-    def update_status(self, request, pk=None):
+    def update_status(self, request: HttpRequest, pk: Any = None) -> Response:
         """Обновляет статус события, доступно только организатору."""
         event = self.get_object()
         new_status = request.data.get('status')
@@ -78,11 +83,11 @@ class RatingViewSet(viewsets.ModelViewSet):
     serializer_class = RatingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Rating]:
         """Возвращает оценки текущего пользователя."""
         return Rating.objects.filter(user=self.request.user)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: RatingSerializer) -> None:
         """Создает оценку с проверкой прав."""
         event = serializer.validated_data['event']
         if event.status != 'completed':
@@ -100,10 +105,10 @@ class BookingViewSet(ErrorHandlingMixin, viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Booking]:
         return Booking.objects.filter(user=self.request.user)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: BookingSerializer) -> None:
         event = serializer.validated_data['event']
 
         if Booking.objects.filter(
@@ -134,7 +139,7 @@ class BookingViewSet(ErrorHandlingMixin, viewsets.ModelViewSet):
     @action(detail=True,
             methods=['delete'],
             permission_classes=[permissions.IsAuthenticated])
-    def cancel_booking(self, request, pk=None):
+    def cancel_booking(self, request: HttpRequest, pk: Any = None) -> Response:
         booking = self.get_object()
 
         if booking.user != request.user:
@@ -158,5 +163,5 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get']
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Notification]:
         return Notification.objects.filter(user=self.request.user)

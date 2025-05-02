@@ -24,7 +24,7 @@ def notify_user(user_id: int, event_id: int, message: str) -> None:
 
 
 @shared_task
-def complete_old_events():
+def complete_old_events() -> None:
     now = timezone.now()
     outdated_events = Event.objects.filter(
         status='planned',

@@ -34,7 +34,7 @@ class Event(models.Model):
         is_status_valid = self.status == self.StatusChoices.PLANNED
         return is_time_valid and is_status_valid
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title
 
 
@@ -52,14 +52,14 @@ class Booking(models.Model):
     class Meta:
         unique_together = ('user', 'event')
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username} - {self.event.title}"
 
 
 class Tag(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -76,7 +76,7 @@ class Notification(models.Model):
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Notification for {self.user.username}: {self.message}"
 
 
@@ -96,5 +96,5 @@ class Rating(models.Model):
     class Meta:
         unique_together = ('event', 'user')
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username} - {self.event.title} ({self.score})"

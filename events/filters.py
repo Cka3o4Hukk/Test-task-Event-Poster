@@ -1,8 +1,8 @@
 import logging
-from typing import ClassVar
+from typing import Optional
 
 import django_filters
-from django.db.models import Avg, Count, F
+from django.db.models import Avg, Count, F, QuerySet
 
 from events.models import Event, Tag
 
@@ -21,14 +21,14 @@ class EventFilter(django_filters.FilterSet):
 
     class Meta:
         model = Event
-        fields: ClassVar[dict] = {
+        fields = {
             'location': ('exact',),
             'status': ('exact',),
             'start_time': ('gte', 'lte'),
             'seats': ('exact', 'gte', 'lte'),
         }
 
-    def filter_queryset(self, queryset):
+    def filter_queryset(self, queryset: QuerySet[Event]) -> QuerySet[Event]:
         """Аннотирует queryset средней оценкой и количеством бронирований."""
         queryset = queryset.annotate(
             avg_rating=Avg('ratings__score'),
@@ -39,13 +39,16 @@ class EventFilter(django_filters.FilterSet):
             logger.warning(f"Ошибка фильтрации: {e!s}")
             return queryset.none()
 
-    def filter_available(self, queryset, name, value):
+    def filter_available(self, queryset: QuerySet[Event],
+                         name: str, value: bool) -> QuerySet[Event]:
         """Фильтрует события по доступности мест."""
         if value:
             return queryset.filter(booked__lt=F("seats"))
         return queryset.filter(booked__gte=F("seats"))
 
-    def filter_avg_rating_gte(self, queryset, name, value):
+    def filter_avg_rating_gte(self,
+                              queryset: QuerySet[Event],
+                              value: Optional[float]) -> QuerySet[Event]:
         """Фильтрует события по средней оценке (>=)."""
         if value is not None:
             return queryset.filter(avg_rating__gte=value)

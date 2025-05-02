@@ -10,66 +10,106 @@ x-app-env: &app-env
     - DJANGO_SETTINGS_MODULE=events_app.settings
     - PYTHONUNBUFFERED=1
     - PYTHONPATH=/app
+  restart: unless-stopped
+
+x-app-volumes: &app-volumes
+  volumes:
+    - ./events_app:/app/events_app:ro
+    - ./events:/app/events:ro
+    - ./manage.py:/app/manage.py:ro
 
 services:
   web:
-    <<: [*app-build, *app-env]
+    <<: [*app-build, *app-env, *app-volumes]
     container_name: events_app_web
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py createsuperuser --noinput --username admin --email admin@example.com &&
-             python manage.py runserver 0.0.0.0:8000"
     ports:
       - '8000:8000'
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     volumes:
-      - .:/app
-    environment:
-      - DJANGO_SUPERUSER_PASSWORD=admin123
+      - static_data:/app/staticfiles
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    networks:
+      - backend
 
   celery:
-    <<: [*app-build, *app-env]
+    <<: [*app-build, *app-env, *app-volumes]
     container_name: events_app_celery
     command: sh -c "sleep 10 && python -m celery -A events_app worker --loglevel=info"
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       db:
         condition: service_healthy
-    volumes:
-      - .:/app
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    networks:
+      - backend
     user: '1000:1000'
 
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: events_app_redis
-    ports:
-      - '6379:6379'
+    expose:
+      - 6379
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - backend
 
   db:
     <<: *app-env
     image: postgres:13-alpine
     container_name: events_app_db
-    ports:
-      - '5432:5432'
+    expose:
+      - 5432
     volumes:
       - db_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=events_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    networks:
+      - backend
+
+networks:
+  frontend:
+  backend:
 
 volumes:
   redis_data:
+    driver: local
   db_data:
+    driver: local
+  static_data:
+    driver: local
