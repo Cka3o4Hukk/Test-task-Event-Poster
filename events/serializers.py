@@ -42,10 +42,10 @@ class EventSerializer(serializers.ModelSerializer):
         logger.debug(f"Validated data: {data}")
         return super().validate(data)
 
-    def create(self, validated_data: Dict[str, Any]) -> Event:
+    def create(self, validated_data):
+        # Устанавливаем текущего пользователя как организатора
         validated_data['organizer'] = self.context['request'].user
-        event = Event.objects.create(**validated_data)
-        return event
+        return super().create(validated_data)
 
     def update(self, instance: Event, validated_data: Dict[str, Any]) -> Event:
         tags = validated_data.pop('tags', None)

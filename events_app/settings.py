@@ -32,7 +32,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'events.middleware.APIAccessMiddleware',
+    'events.middleware.middleware.APIAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'events_app.urls'

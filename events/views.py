@@ -1,25 +1,26 @@
-from typing import Any
-
-from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
+from django.core.exceptions import PermissionDenied
 from django.db.models.query import QuerySet
-from django.http import HttpRequest
-from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from events.filters import EventFilter
-from events.mixins import ErrorHandlingMixin
+from events.filters.filters import EventFilter
+from events.mixins.error_handling import ErrorHandlingMixin
 from events.models import Booking, Event, Notification, Rating
+from events.repositories.booking import BookingRepository
+from events.repositories.event import EventRepository
+from events.repositories.rating import RatingRepository
 from events.serializers import (
     BookingSerializer,
     EventSerializer,
     NotificationSerializer,
     RatingSerializer,
 )
-from events.services import EventService
-from events.tasks import notify_user
+from events.services.booking import BookingService
+from events.services.event import EventService
+from events.services.rating import RatingService
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -28,134 +29,104 @@ class EventViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = EventFilter
 
-    def get_event_service(self) -> EventService:
-        return EventService()
-
     def get_queryset(self) -> QuerySet[Event]:
-        """Возвращает отсортированный queryset событий с аннотацией."""
-        now = timezone.now()
-        queryset = Event.objects.annotate(
-            avg_rating=Avg('ratings__score'),
-            booked=Count('bookings'),
-            sort_order=Case(
-                When(status='planned', start_time__gte=now, then=Value(1)),
-                When(~Q(status='planned'), then=Value(2)),
-                default=Value(3),
-                output_field=IntegerField())).order_by(
-                    'sort_order', 'start_time')
-        return queryset
+        return EventRepository.get_annotated_events()
 
-    def destroy(self, request: HttpRequest,
-                *args: Any, **kwargs: Any) -> Response:
-        """Удаляет событие с проверкой прав и времени."""
+    def destroy(self, request, *args, **kwargs) -> Response:
+        """Удаляет событие с валидацией."""
         event = self.get_object()
-        event_service = self.get_event_service()
-        error = event_service.deny_delete(request, event)
-        if error:
-            return error
-        return super().destroy(request, *args, **kwargs)
+        try:
+            EventService.validate_organizer(request.user, event)
+            EventService.validate_deletion_time(event)
+            EventRepository.delete_event(event)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except (PermissionDenied, ValidationError) as e:
+            return self.create_error_response(
+                str(e), status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True,
             methods=['patch'],
             permission_classes=[permissions.IsAuthenticated])
-    def update_status(self, request: HttpRequest, pk: Any = None) -> Response:
-        """Обновляет статус события, доступно только организатору."""
+    def update_status(self, request, pk=None) -> Response:
+        """Обновляет статус события."""
         event = self.get_object()
         new_status = request.data.get('status')
-        event_service = self.get_event_service()
 
-        error = event_service.deny_if_not_organizer(request, event)
-        if error:
-            return error
+        try:
+            updated_event = EventService.update_event_status(
+                event=event,
+                user=request.user,
+                new_status=new_status)
+            return Response(
+                {"status": updated_event.status},
+                status=status.HTTP_200_OK)
 
-        if new_status not in dict(Event.STATUS_CHOICES).keys():
-            return event_service.create_error_response(
-                "Недопустимый статус.",
-                status.HTTP_400_BAD_REQUEST)
-
-        event.status = new_status
-        event.save()
-        return Response({"status": event.status}, status=status.HTTP_200_OK)
+        except (PermissionDenied, ValidationError) as e:
+            return self.create_error_response(
+                str(e), status.HTTP_400_BAD_REQUEST)
 
 
 class RatingViewSet(viewsets.ModelViewSet):
     """Управление оценками событий."""
     serializer_class = RatingSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self) -> QuerySet[Rating]:
         """Возвращает оценки текущего пользователя."""
-        return Rating.objects.filter(user=self.request.user)
+        return RatingRepository.get_user_ratings(self.request.user)
 
     def perform_create(self, serializer: RatingSerializer) -> None:
-        """Создает оценку с проверкой прав."""
+        """Создает оценку с валидацией через сервис."""
         event = serializer.validated_data['event']
-        if event.status != 'completed':
-            raise serializers.ValidationError(
-                "Можно оценивать только завершенные события.")
-        if not Booking.objects.filter(
-            user=self.request.user,
-                event=event).exists():
-            raise serializers.ValidationError(
-                "Можно оценивать только свои посещенные события.")
-        serializer.save(user=self.request.user)
+        score = serializer.validated_data['score']
+
+        try:
+            RatingService.validate_rating(self.request.user, event)
+            RatingRepository.create_rating(
+                user=self.request.user,
+                event=event,
+                score=score)
+        except ValidationError as e:
+            raise serializers.ValidationError(e.detail) from e
 
 
 class BookingViewSet(ErrorHandlingMixin, viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self) -> QuerySet[Booking]:
-        return Booking.objects.filter(user=self.request.user)
+        """Возвращает бронирования текущего пользователя."""
+        return BookingRepository.get_user_bookings(self.request.user)
 
     def perform_create(self, serializer: BookingSerializer) -> None:
-        event = serializer.validated_data['event']
+        """Создает бронирование через сервис."""
+        try:
+            event = serializer.validated_data['event']
+            BookingService.create_booking(self.request.user, event)
+        except ValidationError as e:
+            raise serializers.ValidationError(e.detail) from e
 
-        if Booking.objects.filter(
-            user=self.request.user,
-                event=event).exists():
-            return self.create_error_response(
-                "Вы уже забронировали место на это мероприятие.",
-                status.HTTP_400_BAD_REQUEST)
 
-        if not event.is_booking:
-            return self.create_error_response(
-                "Бронирование невозможно, до события осталось менее 30 минут.",
-                status.HTTP_400_BAD_REQUEST)
-
-        booked_seats = Booking.objects.filter(event=event).count()
-        if booked_seats >= event.seats:
-            return self.create_error_response(
-                "Нет доступных мест.",
-                status.HTTP_400_BAD_REQUEST)
-
-        booking = serializer.save(user=self.request.user)
-
-        notify_user.delay(
-            booking.user.id,
-            booking.event.id,
-            f"Вы забронировали мероприятие: {booking.event.title}")
-
-    @action(detail=True,
-            methods=['delete'],
-            permission_classes=[permissions.IsAuthenticated])
-    def cancel_booking(self, request: HttpRequest, pk: Any = None) -> Response:
+    @action(detail=True, methods=['delete'])
+    def cancel_booking(self, request, pk=None) -> Response:
+        """Отменяет бронирование."""
         booking = self.get_object()
 
         if booking.user != request.user:
             return self.create_error_response(
-                "Вы не можете отменить бронирование другого пользователя.",
-                status.HTTP_403_FORBIDDEN)
+                "Нельзя отменить чужое бронирование.",
+                status.HTTP_403_FORBIDDEN            )
 
-        notify_user.delay(
-            booking.user.id,
-            booking.event.id,
-            f"Вы отменили бронирование для мероприятия: {booking.event.title}")
-
-        booking.delete()
-        return Response(
-            {"detail": "Бронирование успешно отменено."},
-            status=status.HTTP_204_NO_CONTENT)
+        try:
+            BookingService.cancel_booking(booking)
+            return Response(
+                {"detail": "Бронирование отменено."},
+                status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return self.create_error_response(
+                str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class NotificationViewSet(viewsets.ModelViewSet):

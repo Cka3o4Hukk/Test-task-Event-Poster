@@ -34,6 +34,7 @@ def mock_notify_user():
 
 
 @pytest.mark.django_db
+@patch('events.services.booking.notify_user.delay')
 def test_booking_notification(mock_notify_user, client, user, event):
     client.login(username='testuser', password='testpassword')
     url = '/api/bookings/'
@@ -47,7 +48,8 @@ def test_booking_notification(mock_notify_user, client, user, event):
 
 
 @pytest.mark.django_db
-def test_cancel_booking_notification(client, user, event, mock_notify_user):
+@patch('events.services.booking.notify_user.delay')
+def test_cancel_booking_notification(mock_notify_user, client, user, event):
     booking = Booking.objects.create(user=user, event=event)
     client.login(username='testuser', password='testpassword')
 
