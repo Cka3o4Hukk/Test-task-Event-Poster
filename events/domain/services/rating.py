@@ -12,4 +12,4 @@ class RatingService:
 
         if not Booking.objects.filter(user=user, event=event).exists():
             raise ValidationError(
-                "Можно оценивать только свои посещенные события.") 
+                "Можно оценивать только свои посещенные события.")

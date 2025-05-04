@@ -12,15 +12,13 @@ logger = logging.getLogger(__name__)
 def complete_old_events() -> None:
     now = timezone.now()
     outdated_events = Event.objects.filter(
-        status='planned',
+        status="planned",
         start_time__lt=now - timezone.timedelta(hours=2),
     )
     if outdated_events.exists():
         for event in outdated_events:
-            event.status = 'completed'
+            event.status = "completed"
             event.save()
-        logger.info(f"[COMPLETE EVENTS] {len(outdated_events
-                                             )} events marked as completed.")
     else:
         logger.error("[COMPLETE EVENTS] No outdated events found.")
         return

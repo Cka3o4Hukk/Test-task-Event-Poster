@@ -59,7 +59,7 @@ def past_event(user):
 
 @pytest.mark.django_db
 def test_event_list(api_client, event, past_event):
-    response = api_client.get('/api/events/')
+    response = api_client.get('/api/v1/events/')
     assert response.status_code == status.HTTP_200_OK
     data = response.data
     assert len(data) == 2
@@ -77,7 +77,7 @@ def test_event_create(api_client, user):
         'location': 'New City',
         'seats': 50,
     }
-    response = api_client.post('/api/events/', data)
+    response = api_client.post('/api/v1/events/', data)
     assert response.status_code == status.HTTP_201_CREATED
     assert Event.objects.count() == 1
     assert Event.objects.first().title == 'New Event'
@@ -86,8 +86,15 @@ def test_event_create(api_client, user):
 @pytest.mark.django_db
 def test_event_update(api_client, event, user):
     api_client.force_authenticate(user=user)
-    data = {'title': 'Updated Event'}
-    response = api_client.patch(f'/api/events/{event.id}/', data)
+    data = {
+        'title': 'Updated Event',
+        'description': event.description,
+        'start_time': event.start_time,
+        'location': event.location,
+        'seats': event.seats,
+        'status': event.status,
+    }
+    response = api_client.put(f'/api/v1/events/{event.id}/', data)
     assert response.status_code == status.HTTP_200_OK
     event.refresh_from_db()
     assert event.title == 'Updated Event'
@@ -96,7 +103,7 @@ def test_event_update(api_client, event, user):
 @pytest.mark.django_db
 def test_event_delete(api_client, event, user):
     api_client.force_authenticate(user=user)
-    response = api_client.delete(f'/api/events/{event.id}/')
+    response = api_client.delete(f'/api/v1/events/{event.id}/')
     assert response.status_code == status.HTTP_204_NO_CONTENT
     assert Event.objects.count() == 0
 
@@ -104,7 +111,8 @@ def test_event_delete(api_client, event, user):
 @pytest.mark.django_db
 def test_booking_create(api_client, event, user):
     api_client.force_authenticate(user=user)
-    response = api_client.post('/api/bookings/', {'event': event.id}, format='json')
+    response = api_client.post('/api/v1/bookings/', {'event': event.id},
+                               format='json')
     assert response.status_code == status.HTTP_201_CREATED
     assert Booking.objects.count() == 1
     booking = Booking.objects.first()
@@ -120,7 +128,7 @@ def test_rating_create(api_client, event, user):
     event.save()
 
     data = {'event': event.id, 'score': 5}
-    response = api_client.post('/api/ratings/', data)
+    response = api_client.post('/api/v1/ratings/', data)
     assert response.status_code == status.HTTP_201_CREATED
     assert Rating.objects.count() == 1
     rating = Rating.objects.first()
@@ -133,7 +141,7 @@ def test_rating_create(api_client, event, user):
 def test_create_rating(api_client, user, past_event):
     Booking.objects.create(user=user, event=past_event)
     api_client.force_authenticate(user=user)
-    url = '/api/ratings/'
+    url = '/api/v1/ratings/'
     data = {'event': past_event.id, 'score': 4}
     response = api_client.post(url, data, format='json')
     assert response.status_code == status.HTTP_201_CREATED
@@ -143,7 +151,7 @@ def test_create_rating(api_client, user, past_event):
 @pytest.mark.django_db
 def test_rating_rejected_for_planned_event(api_client, user, event):
     api_client.force_authenticate(user=user)
-    url = '/api/ratings/'
+    url = '/api/v1/ratings/'
     data = {'event': event.id, 'score': 4}
     response = api_client.post(url, data, format='json')
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -153,7 +161,7 @@ def test_rating_rejected_for_planned_event(api_client, user, event):
 @pytest.mark.django_db
 def test_rating_rejected_for_non_participant(api_client, user, past_event):
     api_client.force_authenticate(user=user)
-    url = '/api/ratings/'
+    url = '/api/v1/ratings/'
     data = {'event': past_event.id, 'score': 4}
     response = api_client.post(url, data, format='json')
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -166,7 +174,7 @@ def test_event_list_sorted_by_rating(api_client, user, past_event):
     api_client.force_authenticate(user=user)
     Booking.objects.create(user=user, event=past_event)
     Rating.objects.create(user=user, event=past_event, score=5)
-    response = api_client.get('/api/events/?ordering=-avg_rating')
+    response = api_client.get('/api/v1/events/?ordering=-avg_rating')
     assert response.status_code == status.HTTP_200_OK
     data = response.data
     assert len(data) >= 1

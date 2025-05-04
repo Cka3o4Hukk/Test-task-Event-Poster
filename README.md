@@ -51,7 +51,7 @@ DEBUG=True
 DB_NAME=events
 DB_USER=user
 DB_PASSWORD=test123
-DB_HOST=localhost
+DB_HOST=db
 DB_PORT=5432
 
 ```

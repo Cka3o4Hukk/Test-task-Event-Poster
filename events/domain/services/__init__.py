@@ -6,4 +6,4 @@ __all__ = [
     'BookingService',
     'EventService',
     'RatingService',
-] 
+]

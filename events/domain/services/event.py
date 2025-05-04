@@ -33,4 +33,4 @@ class EventService:
         EventService.validate_status(new_status)
         event.status = new_status
         event.save()
-        return event 
+        return event

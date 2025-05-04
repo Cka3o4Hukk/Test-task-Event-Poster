@@ -111,7 +111,7 @@ def test_event_filter_by_date(event):
 
 @pytest.mark.django_db
 def test_event_filter_by_status(api_client, events):
-    response = api_client.get('/api/events/', {'status': 'planned'})
+    response = api_client.get('/api/v1/events/', {'status': 'planned'})
     assert response.status_code == 200
     assert len(response.data) == 1
     assert response.data[0]['title'] == 'Future Event'
@@ -146,7 +146,7 @@ def test_event_filter_by_rating(rated_event, user):
 @pytest.mark.django_db
 def test_event_filter_by_tag(api_client, events):
     tag = Tag.objects.get(name='tag1')
-    response = api_client.get(f'/api/events/?tags={tag.id}')
+    response = api_client.get(f'/api/v1/events/?tags={tag.id}')
     assert response.status_code == 200
     assert len(response.data) == 1
     assert response.data[0]['title'] == 'Past Event'

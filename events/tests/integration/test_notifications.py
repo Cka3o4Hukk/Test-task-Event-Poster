@@ -39,9 +39,11 @@ def mock_notify_user():
 @patch('events.domain.services.booking.notify_user.delay')
 def test_booking_notification(mock_notify_user, client, user, event):
     client.login(username='testuser', password='testpassword')
-    url = '/api/bookings/'
+    url = '/api/v1/bookings/'
     data = {'event': event.id}
-    client.post(url, data)
+    response = client.post(url, data, content_type='application/json')
+    
+    assert response.status_code == 201
     mock_notify_user.assert_called_once_with(
         user.id,
         event.id,
@@ -55,16 +57,15 @@ def test_cancel_booking_notification(mock_notify_user, client, user, event):
     booking = Booking.objects.create(user=user, event=event)
     client.login(username='testuser', password='testpassword')
 
-    url = f'/api/bookings/{booking.id}/cancel_booking/'
-    response = client.delete(url)
+    url = f'/api/v1/bookings/{booking.id}/cancel/'
+    response = client.post(url)
 
+    assert response.status_code == 204
     mock_notify_user.assert_called_once_with(
         user.id,
         event.id,
         'Вы отменили бронирование для мероприятия: Test Event',
     )
-
-    assert response.status_code == 204
 
 
 @pytest.mark.django_db

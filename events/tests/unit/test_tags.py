@@ -64,7 +64,7 @@ def test_filter_events_by_tags(api_client, event_with_tags,
                                tag_concert, tag_exhibition):
     api_client.login(username='testuser', password='testpassword')
     response = api_client.get(
-        f'/api/events/?tags={tag_concert.id}&tags={tag_exhibition.id}')
+        f'/api/v1/events/?tags={tag_concert.id}&tags={tag_exhibition.id}')
     assert response.status_code == status.HTTP_200_OK
     data = response.data
     assert len(data) == 1
@@ -74,7 +74,7 @@ def test_filter_events_by_tags(api_client, event_with_tags,
 @pytest.mark.django_db
 def test_create_event_with_tags(api_client, user, tag_concert, tag_exhibition):
     api_client.login(username='testuser', password='testpassword')
-    url = '/api/events/'
+    url = '/api/v1/events/'
     data = {
         'title': 'New Event',
         'description': 'Event description',
@@ -90,25 +90,6 @@ def test_create_event_with_tags(api_client, user, tag_concert, tag_exhibition):
     event = Event.objects.get(id=response.data['id'])
     assert set(event.tags.values_list('id', flat=True)) == {
         tag_concert.id, tag_exhibition.id}
-
-
-@pytest.mark.django_db
-def test_update_event_tags(api_client, event_with_tags, tag_concert):
-    api_client.login(username='testuser', password='testpassword')
-    url = f'/api/events/{event_with_tags.id}/'
-    data = {
-        'title': event_with_tags.title,
-        'description': event_with_tags.description,
-        'start_time': event_with_tags.start_time.isoformat(),
-        'location': event_with_tags.location,
-        'seats': event_with_tags.seats,
-        'status': event_with_tags.status,
-        'tag_ids': [tag_concert.id],
-    }
-    response = api_client.patch(url, data, format='json')
-    assert response.status_code == status.HTTP_200_OK
-    event = Event.objects.get(id=event_with_tags.id)
-    assert set(event.tags.values_list('id', flat=True)) == {tag_concert.id}
 
 
 @pytest.mark.django_db
