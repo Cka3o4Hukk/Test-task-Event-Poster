@@ -32,9 +32,9 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py39"
 
-line-length = 79
+line-length = 88
 
 select = [
     "E",
@@ -55,12 +55,21 @@ select = [
 ]
 
 ignore = [
-    "B017",
-    "S101",
-    "S106",
-    "G004",
-    "RUF002",
-    "RUF012",
+    "B017",  # pytest.raises(Exception) is too broad
+    "S101",  # Use of assert detected
+    "S106",  # Possible hardcoded password
+    "G004",  # Logging statement uses f-string
+    "RUF002",  # Docstring contains ambiguous unicode character
+    "RUF012",  # Mutable class attributes should be annotated with typing.ClassVar
+
+    "W291", 
+    "W292",
+]
+
+exclude = [
+    "migrations",
+    "tests",
+    "**/settings.py"
 ]
 
 

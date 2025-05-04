@@ -81,16 +81,18 @@ services:
     <<: *app-env
     image: postgres:13-alpine
     container_name: events_app_db
+    #ports:
+    #  - '5432:5432'
     expose:
       - 5432
     volumes:
       - db_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=events_db
-      - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER}']
       interval: 5s
       timeout: 5s
       retries: 5

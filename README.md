@@ -135,30 +135,47 @@ docker-compose exec web pytest
 
 ```
 events_app/
-├── events/                      # Основное приложение
-│   ├── middleware/              # Промежуточные слои (middleware)
-│   │   └── middleware.py
-│   ├── filters/                 # Кастомные фильтры
-│   │   └── filters.py
-│   ├── mixins/                  # Повторно используемые Mixin-классы
-│   │   └── error_handling.py
-│   ├── services/                # Бизнес-логика
-│   │   ├── event_service.py
-│   │   ├── booking_service.py
-│   │   └── notification_service.py
-│   ├── repositories/           # Работа с базой данных
-│   │   ├── booking.py
-│   │   ├── event.py
-│   │   └── rating.py
-│   ├── models.py               # Модели данных
-│   ├── serializers.py          # Сериализаторы
-│   ├── views.py                # Представления API
-│   └── tasks.py                # Celery-задачи
-├── events_app/                 # Настройки проекта
-├── tests/                      # Тесты
-├── Dockerfile                  # Docker-конфигурация
-└── docker-compose.yml          # Docker Compose-файл
-
+├── events_app/                  # Django-конфигурация
+│   ├── __init__.py
+│   ├── apps.py                  # Главный AppConfig
+│   ├── asgi.py                  # ASGI-конфиг
+│   ├── celery.py                # Celery-конфиг
+│   ├── settings.py              # Настройки проекта
+│   ├── urls.py                  # Корневые URLs проекта
+│   └── wsgi.py                  # WSGI-конфиг
+│
+├── events/                      # Ядро приложения
+│   ├── api/                     # API слой
+│   │   ├── filters/             # Фильтры запросов
+│   │   ├── mixins/              # DRF-миксины
+│   │   ├── serializers/         # Сериализаторы
+│   │   └── views/               # Представления
+│   │
+│   ├── domain/                  # Бизнес-логика
+│   │   ├── models/              # Модели БД
+│   │   ├── repositories/        # Паттерн Repository
+│   │   ├── services/            # Бизнес-сервисы
+│   │   └── tasks/               # Фоновые задачи
+│   │
+│   ├── middleware/              # Прослойки обработки запросов
+│   ├── migrations/              # Миграции БД
+│   ├── tests/                   # Тестирование
+│   │   ├── integration/         # Интеграционные тесты
+│   │   └── unit/                # Изолированные тесты
+│   │
+│   ├── admin.py                 # Регистрация моделей
+│   ├── apps.py                  # AppConfig для приложения events
+│   └── urls.py                  # Локальные URLs
+│
+├── static/                      # Статические файлы
+│
+├── .env                         # Переменные окружения
+├── .gitignore                   # Игнорируемые файлы
+├── Dockerfile                   # Конфигурация Docker
+├── docker-compose.yml           # Оркестрация контейнеров
+├── manage.py                    # Управление Django
+├── pyproject.toml               # Зависимости
+└── README.md                    # Документация
 
 ```
 

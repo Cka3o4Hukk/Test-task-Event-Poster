@@ -54,7 +54,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'events_app.wsgi.application'
-
+print(os.getenv('DB_HOST'))
 
 DATABASES = {
     'default': {

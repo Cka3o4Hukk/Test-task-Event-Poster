@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from events.models import Booking, Event, Notification
+from events.domain.models import Booking, Event, Notification
 
 admin.site.register(Event)
 admin.site.register(Booking)
